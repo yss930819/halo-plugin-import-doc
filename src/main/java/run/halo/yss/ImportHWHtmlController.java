@@ -9,17 +9,18 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 import run.halo.app.plugin.ApiVersion;
 
-@ApiVersion("io.sakurasou.halo.typecho/v1")
+@ApiVersion("run.halo.yss/v1/")
 @RestController
-@RequestMapping("/typecho")
-public class ImportController {
+@RequestMapping("/import-hw-html")
+public class ImportHWHtmlController {
+    // apis/
 
 
     @PostMapping("/upload")
-    public Mono<Void> import1(@RequestBody final ImportSchema inportSchema) {
+    public Mono<Void> import1(@RequestBody final ImportSchema importSchema) {
 
 
-        System.out.println("输入参数为:" +inportSchema.getName());
+        System.out.println("输入参数为:" + importSchema.getName());
 
         return Mono.empty();
     }
