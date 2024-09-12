@@ -11,7 +11,7 @@ public class FileUtil {
     }
 
     public static Path getAttachmentsPath(String path) {
-        return getDocFile("attachments/upload/import-hw-doc" + path);
+        return getDocFile("attachments/upload/import-hw-doc/" + path);
     }
 
     public static Path getPluginTemp() {

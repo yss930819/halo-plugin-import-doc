@@ -172,7 +172,7 @@ public class PostServiceImpl extends AbstractContentService implements PostServi
         postSpec.setExcerpt(excerpt);
         postSpec.setPriority(0);
         postSpec.setVisible(Post.VisibleEnum.PUBLIC);
-        postSpec.setPublish(false);
+        postSpec.setPublish(true);
         postSpec.setPinned(false);
 
 
