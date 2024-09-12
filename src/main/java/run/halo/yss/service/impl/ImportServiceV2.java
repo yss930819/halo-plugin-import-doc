@@ -41,7 +41,8 @@ public class ImportServiceV2 implements ImportService {
                 PostRequest postRequest = postService.formatPost(file);
                 Post post = postRequest.getPost();
                 return postService.draftPost(postRequest).doOnSuccess(re->{
-
+                    // 删除临时目录
+                    file.delete();
                 });
 
             });

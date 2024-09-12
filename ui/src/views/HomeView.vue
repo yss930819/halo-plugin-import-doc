@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import confetti from "canvas-confetti";
 import { onMounted } from "vue";
 import { VPageHeader } from "@halo-dev/components";
 
 onMounted(() => {
-  confetti({
-    particleCount: 100,
-    spread: 70,
-    origin: { y: 0.6, x: 0.58 },
-  });
+  // confetti({
+  //   particleCount: 100,
+  //   spread: 70,
+  //   origin: { y: 0.6, x: 0.58 },
+  // });
 });
 
 </script>

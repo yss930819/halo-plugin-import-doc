@@ -11,11 +11,11 @@ public class FileUtil {
     }
 
     public static Path getAttachmentsPath(String path) {
-        return getDocFile("attachments/upload/" + path);
+        return getDocFile("attachments/upload/import-hw-doc" + path);
     }
 
     public static Path getPluginTemp() {
-        return getDocFile("plugins/import-doc");
+        return getDocFile("plugins/import-hw-doc");
     }
 
     /**
