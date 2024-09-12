@@ -4,13 +4,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class FileUtil {
-    private static final String  ROOT_PATH="/.halo2/";
-    public enum DirPath{
+    private static final String ROOT_PATH = "/.halo2/";
+
+    public enum DirPath {
         IMPORT;
     }
 
-    public static Path getAttachmentsPath() {
-        return getDocFile("attachments/upload/import-doc");
+    public static Path getAttachmentsPath(String path) {
+        return getDocFile("attachments/upload/" + path);
     }
 
     public static Path getPluginTemp() {

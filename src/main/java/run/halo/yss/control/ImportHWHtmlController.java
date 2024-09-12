@@ -13,6 +13,9 @@ import run.halo.app.core.extension.content.Post;
 import run.halo.app.plugin.ApiVersion;
 
 import run.halo.yss.service.impl.ImportServiceV2;
+import run.halo.yss.util.FileUtil;
+import java.io.File;
+import java.nio.file.Path;
 
 
 @ApiVersion("run.halo.yss/v1/")
@@ -32,23 +35,19 @@ public class ImportHWHtmlController {
         MediaType.APPLICATION_PROBLEM_JSON_VALUE,
         MediaType.MULTIPART_FORM_DATA_VALUE})
     public Mono<Post> upload(@RequestPart("file") Mono<FilePart> file) {
-        // Path _tmp = FileUtil.getPluginTemp();
-        //
-        //
-        // return file.flatMap(filePart -> {
-        //     System.out.println(filePart.filename());
-        //
-        //     File __save_file = new File(_tmp.toString() + "/" + filePart.filename());
-        //
-        //
-        //     return filePart.transferTo(__save_file).flatMap(
-        //         f -> {
-        //             return importService.runTask(__save_file);
-        //         }
-        //     );
-        // });
+        Path _tmp = FileUtil.getPluginTemp();
 
-        return Mono.just(new Post());
+
+        return file.flatMap(filePart -> {
+            System.out.println(filePart.filename());
+
+            File __save_file = new File(_tmp.toString() + "/" + filePart.filename());
+
+            filePart.transferTo(__save_file).block();
+
+
+            return importService.runTask(__save_file);
+        });
 
     }
 }

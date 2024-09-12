@@ -13,10 +13,10 @@ export default definePlugin({
         name: "import-doc",
         component: HomeView,
         meta: {
-          title: "文档导入",
+          title: "导入华为备忘录",
           searchable: true,
           menu: {
-            name: "文档导入",
+            name: "导入华为备忘录",
             group: "tool",
             icon: markRaw(IconMagic),
             priority: 0,

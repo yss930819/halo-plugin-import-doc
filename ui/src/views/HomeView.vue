@@ -2,7 +2,6 @@
 import confetti from "canvas-confetti";
 import { onMounted } from "vue";
 import { VPageHeader } from "@halo-dev/components";
-import { axiosInstance } from "@halo-dev/api-client";
 
 onMounted(() => {
   confetti({
@@ -12,25 +11,16 @@ onMounted(() => {
   });
 });
 
-const onClick = function () {
-  console.log("ok");
-
-  axiosInstance
-    .post("/apis/run.halo.yss/v1/import-hw-html/upload", { name: "res" })
-    .then((response) => {
-      console.log(response);
-    });
-};
 </script>
 
 <template>
-  <VPageHeader title="导入文档"></VPageHeader>
+  <VPageHeader title="导入华为备忘录"></VPageHeader>
   <div class="m-0 md:m-4">
     <UppyUpload
       :restrictions="{
         allowedFileTypes: ['.html'],
       }"
-      note="仅支持.html文件，可批量上传"
+      note="从华为备忘录中导出 html 可通过此处导入（其他的 html 文件没有测试过），仅支持.html文件，可批量上传。"
       endpoint="/apis/run.halo.yss/v1/import-hw-html/upload"
       width="100%"
     />

@@ -92,28 +92,6 @@ public abstract class AbstractContentService {
         return this.draftContent(baseSnapshotName, content, content.headSnapshotName());
     }
 
-    protected Mono<ContentWrapper> updateContent(String baseSnapshotName,
-        ContentRequest contentRequest) {
-        Assert.notNull(contentRequest, "The contentRequest must not be null");
-        Assert.notNull(baseSnapshotName, "The baseSnapshotName must not be null");
-        Assert.notNull(contentRequest.headSnapshotName(), "The headSnapshotName must not be null");
-        return client.fetch(Snapshot.class, contentRequest.headSnapshotName())
-            .flatMap(headSnapshot -> client.fetch(Snapshot.class, baseSnapshotName)
-                .map(baseSnapshot -> determineRawAndContentPatch(headSnapshot, baseSnapshot,
-                    contentRequest)
-                )
-            )
-            .flatMap(headSnapshot -> getContextUsername()
-                .map(username -> {
-                    Snapshot.addContributor(headSnapshot, username);
-                    return headSnapshot;
-                })
-                .defaultIfEmpty(headSnapshot)
-            )
-            .flatMap(client::update)
-            .flatMap(head -> restoredContent(baseSnapshotName, head));
-    }
-
     protected Mono<ContentWrapper> restoredContent(String baseSnapshotName, Snapshot headSnapshot) {
         return client.fetch(Snapshot.class, baseSnapshotName)
             .doOnNext(this::checkBaseSnapshot)

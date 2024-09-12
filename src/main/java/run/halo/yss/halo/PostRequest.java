@@ -21,10 +21,4 @@ public class PostRequest {
         this.post = post;
         this.content = content;
     }
-
-    public ContentRequest contentRequest() {
-        Ref subjectRef = Ref.of(post);
-        return new ContentRequest(subjectRef, post.getSpec().getHeadSnapshot(), content.getRaw(),
-            content.getContent(), content.getRawType());
-    }
 }

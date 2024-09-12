@@ -6,6 +6,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.nodes.Node;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
@@ -23,11 +25,17 @@ import run.halo.yss.halo.ContentWrapper;
 import run.halo.yss.halo.PostRequest;
 import run.halo.yss.halo.service.AbstractContentService;
 import run.halo.yss.service.PostService;
+import run.halo.yss.util.FileUtil;
+
 import java.io.*;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A default implementation of {@link PostService}.
@@ -113,40 +121,6 @@ public class PostServiceImpl extends AbstractContentService implements PostServi
                 .filter(OptimisticLockingFailureException.class::isInstance));
     }
 
-    @Override
-    public Mono<Post> updatePost(PostRequest postRequest) {
-        Post post = postRequest.getPost();
-        String headSnapshot = post.getSpec().getHeadSnapshot();
-        String releaseSnapshot = post.getSpec().getReleaseSnapshot();
-        String baseSnapshot = post.getSpec().getBaseSnapshot();
-
-        if (StringUtils.equals(releaseSnapshot, headSnapshot)) {
-            // create new snapshot to update first
-            return draftContent(baseSnapshot, postRequest.contentRequest(), headSnapshot)
-                .flatMap(contentWrapper -> {
-                    post.getSpec().setHeadSnapshot(contentWrapper.getSnapshotName());
-                    return client.update(post);
-                });
-        }
-        return Mono.defer(() -> updateContent(baseSnapshot, postRequest.contentRequest())
-                .flatMap(contentWrapper -> {
-                    post.getSpec().setHeadSnapshot(contentWrapper.getSnapshotName());
-                    return client.update(post);
-                }))
-            .retryWhen(Retry.backoff(5, Duration.ofMillis(100))
-                .filter(throwable -> throwable instanceof OptimisticLockingFailureException));
-    }
-
-    @Override
-    public Mono<Post> updateBy(@NonNull Post post) {
-        return client.update(post);
-    }
-
-    @Override
-    public Mono<ContentWrapper> getHeadContent(String postName) {
-        return client.get(Post.class, postName)
-            .flatMap(this::getHeadContent);
-    }
 
     @Override
     public Mono<ContentWrapper> getHeadContent(Post post) {
@@ -154,11 +128,6 @@ public class PostServiceImpl extends AbstractContentService implements PostServi
         return getContent(headSnapshot, post.getSpec().getBaseSnapshot());
     }
 
-    @Override
-    public Mono<ContentWrapper> getReleaseContent(String postName) {
-        return client.get(Post.class, postName)
-            .flatMap(this::getReleaseContent);
-    }
 
     @Override
     public Mono<ContentWrapper> getReleaseContent(Post post) {
@@ -166,56 +135,35 @@ public class PostServiceImpl extends AbstractContentService implements PostServi
         return getContent(releaseSnapshot, post.getSpec().getBaseSnapshot());
     }
 
-    @Override
-    public Mono<Post> publish(Post post) {
-        return Mono.just(post)
-            .doOnNext(p -> {
-                var spec = post.getSpec();
-                spec.setPublish(true);
-                if (spec.getHeadSnapshot() == null) {
-                    spec.setHeadSnapshot(spec.getBaseSnapshot());
-                }
-                spec.setReleaseSnapshot(spec.getHeadSnapshot());
-            }).flatMap(client::update);
-    }
-
-    @Override
-    public Mono<Post> unpublish(Post post) {
-        return Mono.just(post)
-            .doOnNext(p -> p.getSpec().setPublish(false))
-            .flatMap(client::update);
-    }
-
-    @Override
-    public Mono<Post> getByUsername(String postName, String username) {
-        return client.get(Post.class, postName)
-            .filter(post -> post.getSpec() != null)
-            .filter(post -> Objects.equals(username, post.getSpec().getOwner()));
-    }
 
     @Override
     public PostRequest formatPost(File file) {
 
         String title = file.getName().split(".html")[0];
         StringBuffer content = new StringBuffer();
-
+        String uuid = UUID.randomUUID().toString();
+        Document doc;
         try {
-            Document doc = Jsoup.parse(file);
-            doc.getElementsByTag("div").forEach(
-                node -> {
-                    content.append(node.html());
-                }
-            );
+            System.out.println("read doc");
+            doc = Jsoup.parse(file);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+        System.out.println("read doc over");
+
+        doc.getElementsByTag("div").forEach(
+            node -> {
+                content.append(changeDivNode(node, uuid));
+            }
+        );
 
 
         Post post = new Post();
 
         Post.PostSpec postSpec = new Post.PostSpec();
         postSpec.setTitle(title);
-        postSpec.setSlug(UUID.randomUUID().toString());
+        postSpec.setSlug(uuid);
         postSpec.setAllowComment(true);
         postSpec.setDeleted(false);
         Post.Excerpt excerpt = new Post.Excerpt();
@@ -250,4 +198,102 @@ public class PostServiceImpl extends AbstractContentService implements PostServi
 
     }
 
+    private String changeDivNode(Element node, String postId) {
+
+        StringBuffer out = new StringBuffer();
+        // 处理不是图片
+        if (node.getElementsByTag("img").isEmpty()) {
+
+            for (int i = 0; i < node.childNodes().size(); i++) {
+                out.append(changeNode(node.childNode(i), node, i));
+            }
+
+        } else {
+            Element img = node.getElementsByTag("img").first();
+
+            assert img != null;
+
+            String src = img.attributes().get("src");
+
+            img.attributes().put("src", saveBase64ImageToFile(src, postId));
+
+            out.append(img);
+        }
+
+        return "<div>" + out + "</div>\n";
+    }
+
+    private String changeNode(Node node, Node parent, int index) {
+
+        // 处理还有嵌套的情况
+        if (node.childNodes().size() > 0) {
+            StringBuffer out = new StringBuffer();
+            for (int i = 0; i < node.childNodes().size(); i++) {
+                out.append(changeNode(node.childNode(i), node, i));
+            }
+
+            // 处理 font 情况
+            if (node.nodeName().equals("font")) {
+                return "<span color=\"" + node.attributes().get("color") + "\" style=\"color: "
+                    + node.attributes().get("color") + "\">" + out.toString() + "</span>\n";
+            }
+
+            return "<" + node.nodeName() + ">" + out.toString() + "</" + node.nodeName() + ">\n";
+        }
+
+        // 处理独立节点
+        if (node.nodeName().equals("#text")) {
+            return node.toString();
+        } else if (node.nodeName().equals("br")) {
+            // 最后一个 br删除
+            if (index == parent.childNodes().size() - 1) {
+                return "";
+            }
+            // 后面有别的标记的删除
+            else if (parent.childNodes().get(index + 1).nodeName() != "#text") {
+                return "";
+            } else if (parent.childNodes().get(index + 1).toString().isEmpty()) {
+                return "";
+            } else {
+                return node.toString();
+            }
+
+        } else if (node.nodeName().equals("font")) {
+            return "<span color=\"" + node.attributes().get("color") + "\" style=\"color: "
+                + node.attributes().get("color") + "\">" + node.toString() + "</span>\n";
+        }
+
+        return node.toString();
+    }
+
+    public String saveBase64ImageToFile(String base64Image, String postId) {
+        try {
+            // 检查Base64字符串是否以数据URI格式开始
+            if (base64Image.startsWith("data:image")) {
+                // 截取图片格式
+                String[] base64Data = base64Image.split(",");
+                String imageFormat = base64Data[0].split(";")[0].split(":")[1]; // 获取图片格式
+                String base64ImageWithoutHeader = base64Data[1].replace("\n",""); // 获取实际的Base64编码字符串
+
+                // 创建文件名和路径
+                String fileName =
+                    System.currentTimeMillis() + UUID.randomUUID().toString().replace("-","") + "." + imageFormat.split("/")[1]; // 根据格式创建文件名
+                Path outputPath = FileUtil.getAttachmentsPath(postId);
+                File file = new File(outputPath + File.separator + fileName);
+
+                // 解码Base64字符串并写入文件
+                byte[] imageBytes = Base64.getDecoder().decode(base64ImageWithoutHeader);
+                try (FileOutputStream fileOutputStream = new FileOutputStream(file)) {
+                    fileOutputStream.write(imageBytes);
+                }
+
+                return file.getAbsolutePath().split("attachments")[1]; // 返回文件的存储路径
+            } else {
+                throw new IllegalArgumentException("Invalid Base64 image data.");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null; // 发生异常时返回null
+        }
+    }
 }
