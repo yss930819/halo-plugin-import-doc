@@ -1,24 +1,24 @@
 import { definePlugin } from "@halo-dev/console-shared";
 import HomeView from "./views/HomeView.vue";
-import { IconPlug } from "@halo-dev/components";
+import { IconMagic } from "@halo-dev/components";
 import { markRaw } from "vue";
 
 export default definePlugin({
   components: {},
   routes: [
     {
-      parentName: "Root",
+      parentName: "ToolsRoot",
       route: {
-        path: "/example",
-        name: "Example",
+        path: "/import-doc",
+        name: "import-doc",
         component: HomeView,
         meta: {
-          title: "示例页面",
+          title: "文档导入",
           searchable: true,
           menu: {
-            name: "示例页面",
-            group: "示例分组",
-            icon: markRaw(IconPlug),
+            name: "文档导入",
+            group: "tool",
+            icon: markRaw(IconMagic),
             priority: 0,
           },
         },
